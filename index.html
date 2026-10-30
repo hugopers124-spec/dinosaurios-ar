@@ -7,8 +7,55 @@
   <title>Mi primera experiencia AR</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script>
+    // ===== Giro 360° =====
+    // Cada modelo gira solo sobre su eje vertical. Al arrastrar el dedo (o el mouse)
+    // lo giras a mano; el giro automático se pausa y vuelve 2 segundos después de soltar.
+    const giro = {
+      piezas: [],          // los object3D que giran
+      arrastrando: false,
+      ultimoX: 0,
+      reanudarEn: 0,       // momento en que vuelve el giro automático
+      pausado: false       // botón Pausar
+    };
+
+    AFRAME.registerComponent('giro-360', {
+      schema: {
+        velocidad: { default: 30 },  // grados por segundo (30 = una vuelta cada 12 s)
+        inicio: { default: 0 }       // ángulo inicial en grados
+      },
+      init() {
+        this.el.object3D.rotation.y = THREE.MathUtils.degToRad(this.data.inicio);
+        giro.piezas.push(this.el.object3D);
+      },
+      tick(tiempo, dt) {
+        if (!dt || giro.pausado || giro.arrastrando || performance.now() < giro.reanudarEn) return;
+        this.el.object3D.rotation.y += THREE.MathUtils.degToRad(this.data.velocidad) * dt / 1000;
+      }
+    });
+
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      giro.arrastrando = true;
+      giro.ultimoX = e.clientX;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!giro.arrastrando) return;
+      const dx = e.clientX - giro.ultimoX;
+      giro.ultimoX = e.clientX;
+      const radianes = THREE.MathUtils.degToRad(dx * 0.6);   // 0.6° por pixel
+      giro.piezas.forEach((p) => { p.rotation.y += radianes; });
+    });
+    const soltar = () => {
+      if (!giro.arrastrando) return;
+      giro.arrastrando = false;
+      giro.reanudarEn = performance.now() + 2000;
+    };
+    window.addEventListener('pointerup', soltar);
+    window.addEventListener('pointercancel', soltar);
+  </script>
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; }
+    html, body { margin: 0; height: 100%; overflow: hidden; touch-action: none; }
     #aviso {
       position: fixed; top: 12px; left: 12px; right: 12px;
       z-index: 10; padding: 10px; border-radius: 8px;
@@ -19,10 +66,28 @@
     }
     #aviso.oculto { opacity: 0; }
     #aviso.error { background: #9b1c1c; }
+    #controles {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      z-index: 10; display: flex; align-items: center; gap: 10px;
+      padding: 8px 8px 8px 14px; border-radius: 999px;
+      background: rgba(21, 52, 81, .85); color: white;
+      font: 15px Arial, sans-serif; white-space: nowrap;
+      transition: opacity .3s;
+    }
+    #controles.oculto { opacity: 0; pointer-events: none; }
+    #pausa {
+      border: 0; border-radius: 999px; padding: 8px 14px;
+      background: white; color: #153451;
+      font: bold 15px Arial, sans-serif; cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <div id="aviso">Autoriza la cámara y apunta a una de las tarjetas: dinosaurio, escudo o gorila</div>
+  <div id="controles" class="oculto">
+    <span>Desliza para girar 360°</span>
+    <button id="pausa" type="button">⏸ Pausar</button>
+  </div>
 
   <a-scene
     mindar-image="imageTargetSrc: ./targets.mind; maxTrack: 2; filterMinCF: 0.0001; filterBeta: 0.001;"
@@ -44,37 +109,58 @@
     <a-light type="ambient" intensity="1"></a-light>
     <a-light type="directional" intensity="1.5" position="1 2 3"></a-light>
 
-    <!-- targetIndex 0 = marcador.png (dinosaurio). La tarjeta mide 1 de ancho -->
+    <!--
+      Cada tarjeta tiene 3 niveles:
+        1. Base: dónde va el modelo sobre la tarjeta (position) y su inclinación (rotation en X).
+        2. giro-360: gira sobre el eje vertical. "inicio" es el ángulo con el que arranca.
+        3. El modelo, con su tamaño (scale). La tarjeta mide 1 de ancho.
+    -->
+
+    <!-- targetIndex 0 = marcador.png (dinosaurio) -->
     <a-entity id="target-dino" mindar-image-target="targetIndex: 0">
-      <a-gltf-model src="#dino"
-                    rotation="10 -40 0"
-                    position="0 -0.3 0.05"
-                    scale="0.75 0.75 0.75"></a-gltf-model>
+      <a-entity position="0 -0.3 0.05" rotation="10 0 0">
+        <a-entity giro-360="inicio: -40">
+          <a-gltf-model src="#dino"
+                        scale="0.75 0.75 0.75"></a-gltf-model>
+        </a-entity>
+      </a-entity>
     </a-entity>
 
     <!-- targetIndex 1 = marcador-escudo.png (escudo de hueso) -->
     <a-entity id="target-escudo" mindar-image-target="targetIndex: 1">
-      <a-gltf-model src="#escudo"
-                    rotation="0 -20 0"
-                    position="0 -0.49 0.08"
-                    scale="0.76 0.76 0.76"></a-gltf-model>
+      <a-entity position="0 -0.49 0.08">
+        <a-entity giro-360="inicio: -20">
+          <a-gltf-model src="#escudo"
+                        position="0 0 -0.027"
+                        scale="0.76 0.76 0.76"></a-gltf-model>
+        </a-entity>
+      </a-entity>
     </a-entity>
 
     <!-- targetIndex 2 = marcador-gorila.png (gorila) -->
     <a-entity id="target-gorila" mindar-image-target="targetIndex: 2">
-      <a-gltf-model src="#gorila"
-                    rotation="0 -30 0"
-                    position="0 -0.49 0.08"
-                    scale="0.82 0.82 0.82"></a-gltf-model>
+      <a-entity position="0 -0.49 0.08">
+        <a-entity giro-360="inicio: -30">
+          <a-gltf-model src="#gorila"
+                        scale="0.82 0.82 0.82"></a-gltf-model>
+        </a-entity>
+      </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
     // Oculta el aviso mientras se vea algún target y lo muestra cuando se pierden todos.
     const aviso = document.getElementById('aviso');
+    const controles = document.getElementById('controles');
+    const botonPausa = document.getElementById('pausa');
     const escena = document.querySelector('a-scene');
     const targets = document.querySelectorAll('[mindar-image-target]');
     let visibles = 0;
+
+    botonPausa.addEventListener('click', () => {
+      giro.pausado = !giro.pausado;
+      botonPausa.textContent = giro.pausado ? '▶ Girar' : '⏸ Pausar';
+    });
 
     escena.addEventListener('arReady', () => {
       aviso.textContent = 'Apunta la cámara a una de las tarjetas';
@@ -88,12 +174,14 @@
       target.addEventListener('targetFound', () => {
         visibles++;
         aviso.classList.add('oculto');
+        controles.classList.remove('oculto');
       });
       target.addEventListener('targetLost', () => {
         visibles = Math.max(0, visibles - 1);
         if (visibles === 0) {
           aviso.textContent = 'Target perdido: vuelve a apuntar la cámara';
           aviso.classList.remove('oculto');
+          controles.classList.add('oculto');
         }
       });
     });

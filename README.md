@@ -1,6 +1,6 @@
 # Dinosaurios AR
 
-Experiencia de realidad aumentada hecha con **A-Frame 1.5.0** y **MindAR 1.2.5**. La página reconoce tres tarjetas y muestra un modelo 3D distinto sobre cada una:
+Experiencia de realidad aumentada hecha con **A-Frame 1.5.0** y **MindAR 1.2.5**. La página reconoce tres tarjetas y muestra un modelo 3D distinto sobre cada una. Los modelos giran 360° solos, y también se pueden girar arrastrando el dedo:
 
 | Tarjeta | Objetivo | Modelo 3D |
 |---|---|---|
@@ -27,13 +27,19 @@ Página publicada: https://hugopers124-spec.github.io/dinosaurios-ar/
 2. Acepta el permiso de la cámara.
 3. Apunta a una de las tarjetas, impresa o en otra pantalla. Se pueden ver hasta dos a la vez.
 
+## Giro 360°
+
+- Cada modelo da una vuelta completa cada 12 segundos.
+- Arrastra el dedo (o el mouse) a los lados para girarlo a mano. El giro automático vuelve 2 segundos después de soltar.
+- El botón **Pausar** detiene el giro; **Girar** lo reanuda.
+
 ## Ajustes
 
-En `index.html`, dentro de cada `<a-gltf-model>`:
+En `index.html`, cada tarjeta tiene 3 niveles:
 
-- `scale`: tamaño del modelo. La tarjeta mide 1 de ancho.
-- `position`: posición sobre la tarjeta (x, y, z).
-- `rotation`: giro del modelo en grados (x, y, z).
+1. La entidad de base: `position` (x, y, z) es dónde va el modelo sobre la tarjeta y `rotation` es su inclinación. La tarjeta mide 1 de ancho.
+2. `giro-360`: `inicio` es el ángulo con el que arranca y `velocidad` son los grados por segundo (30 = una vuelta cada 12 s; 0 = sin giro automático).
+3. `<a-gltf-model>`: `scale` es el tamaño del modelo.
 
 Si agregas o cambias una tarjeta, hay que volver a compilar `targets.mind` con **todas** las imágenes, en el mismo orden, con el [compilador de MindAR](https://hiukim.github.io/mind-ar-js-doc/tools/compile). El orden define el número de objetivo (`targetIndex`).
 
